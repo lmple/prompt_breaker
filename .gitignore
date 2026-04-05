@@ -1,0 +1,23 @@
+# Haskell
+backend/dist-newstyle/
+backend/cabal.project.local
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+
+# Node.js
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
