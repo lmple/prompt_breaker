@@ -11,9 +11,17 @@ module DB.Queries
   , getRun
   , getRuns
   , getStats
+  , hasRunsForTarget
+  , hasRunsForAttack
+  , updateTarget
+  , deleteTargetById
+  , updateAttack
+  , deleteAttackById
   ) where
 
+import Data.Int (Int64)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.UUID (UUID)
 import Database.PostgreSQL.Simple
 import GHC.Generics (Generic)
@@ -93,6 +101,54 @@ getRuns conn =
   query_ conn
     "SELECT id, attack_id, target_id, prompt_strategy, system_prompt, raw_response, success, confidence, evaluator_method, ran_at \
     \FROM runs ORDER BY ran_at DESC"
+
+-- Run reference checks
+
+hasRunsForTarget :: Connection -> UUID -> IO Bool
+hasRunsForTarget conn tid = do
+  [Only exists] <- query conn "SELECT EXISTS (SELECT 1 FROM runs WHERE target_id = ?)" (Only tid)
+  pure exists
+
+hasRunsForAttack :: Connection -> UUID -> IO Bool
+hasRunsForAttack conn aid = do
+  [Only exists] <- query conn "SELECT EXISTS (SELECT 1 FROM runs WHERE attack_id = ?)" (Only aid)
+  pure exists
+
+-- Update / Delete targets
+
+updateTarget :: Connection -> UUID -> Text -> Text -> Text -> Maybe Text -> IO [LLMTargetRow]
+updateTarget conn tid name baseUrl model apiKey =
+  case apiKey of
+    Nothing -> query conn
+      "UPDATE llm_targets SET name=?, base_url=?, model=? WHERE id=? \
+      \RETURNING id, name, base_url, model, api_key, created_at"
+      (name, baseUrl, model, tid)
+    Just key
+      | T.null key -> query conn
+          "UPDATE llm_targets SET name=?, base_url=?, model=?, api_key=NULL WHERE id=? \
+          \RETURNING id, name, base_url, model, api_key, created_at"
+          (name, baseUrl, model, tid)
+      | otherwise -> query conn
+          "UPDATE llm_targets SET name=?, base_url=?, model=?, api_key=? WHERE id=? \
+          \RETURNING id, name, base_url, model, api_key, created_at"
+          (name, baseUrl, model, key, tid)
+
+deleteTargetById :: Connection -> UUID -> IO Int64
+deleteTargetById conn tid =
+  execute conn "DELETE FROM llm_targets WHERE id=?" (Only tid)
+
+-- Update / Delete attacks
+
+updateAttack :: Connection -> UUID -> Text -> Maybe Text -> Text -> Text -> Text -> IO [AttackTemplateRow]
+updateAttack conn aid category technique payload description owaspRef =
+  query conn
+    "UPDATE attack_templates SET category=?, technique=?, payload=?, description=?, owasp_ref=? WHERE id=? \
+    \RETURNING id, category, technique, payload, description, owasp_ref, created_at"
+    (category, technique, payload, description, owaspRef, aid)
+
+deleteAttackById :: Connection -> UUID -> IO Int64
+deleteAttackById conn aid =
+  execute conn "DELETE FROM attack_templates WHERE id=?" (Only aid)
 
 -- Stats
 

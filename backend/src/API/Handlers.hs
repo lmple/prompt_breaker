@@ -27,8 +27,12 @@ server :: Connection -> Server API
 server conn =
        getTargetsH conn
   :<|> postTargetH conn
+  :<|> putTargetH conn
+  :<|> deleteTargetH conn
   :<|> getAttacksH conn
   :<|> postAttackH conn
+  :<|> putAttackH conn
+  :<|> deleteAttackH conn
   :<|> getRunsH conn
   :<|> postRunH conn
   :<|> getRunByIdH conn
@@ -48,6 +52,24 @@ postTargetH conn r = do
     (row:_) -> pure $ targetFromRow row
     []      -> throwError err409 { errBody = "Target name already exists" }
 
+putTargetH :: Connection -> UUID -> LLMTargetRequest -> Handler LLMTarget
+putTargetH conn tid r = do
+  rows <- liftIO $ updateTarget conn tid (ltrName r) (ltrBaseUrl r) (ltrModel r) (ltrApiKey r)
+  case rows of
+    (row:_) -> pure $ targetFromRow row
+    []      -> throwError err404 { errBody = "Target not found" }
+
+deleteTargetH :: Connection -> UUID -> Handler NoContent
+deleteTargetH conn tid = do
+  hasRuns <- liftIO $ hasRunsForTarget conn tid
+  if hasRuns
+    then throwError err409 { errBody = "Cannot delete target: it has associated run history" }
+    else do
+      n <- liftIO $ deleteTargetById conn tid
+      if n == 0
+        then throwError err404 { errBody = "Target not found" }
+        else pure NoContent
+
 -- Attack handlers
 
 getAttacksH :: Connection -> Handler [AttackTemplate]
@@ -62,6 +84,25 @@ postAttackH conn r = do
   case rows of
     (row:_) -> pure $ attackFromRow row
     []      -> throwError err400 { errBody = "Invalid attack data" }
+
+putAttackH :: Connection -> UUID -> AttackRequest -> Handler AttackTemplate
+putAttackH conn aid r = do
+  rows <- liftIO $ updateAttack conn aid
+    (arCategory r) (arTechnique r) (arPayload r) (arDescription r) (arOwaspRef r)
+  case rows of
+    (row:_) -> pure $ attackFromRow row
+    []      -> throwError err404 { errBody = "Attack not found" }
+
+deleteAttackH :: Connection -> UUID -> Handler NoContent
+deleteAttackH conn aid = do
+  hasRuns <- liftIO $ hasRunsForAttack conn aid
+  if hasRuns
+    then throwError err409 { errBody = "Cannot delete attack: it has associated run history" }
+    else do
+      n <- liftIO $ deleteAttackById conn aid
+      if n == 0
+        then throwError err404 { errBody = "Attack not found" }
+        else pure NoContent
 
 -- Run handlers
 

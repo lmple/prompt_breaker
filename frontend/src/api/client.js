@@ -25,3 +25,25 @@ export const postAttack = (data) =>
 
 export const postRun = (data) =>
   fetchJSON('/runs', { method: 'POST', body: JSON.stringify(data) });
+
+export const putTarget = (id, data) =>
+  fetchJSON(`/targets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteTarget = async (id) => {
+  const res = await fetch(`${BASE_URL}/targets/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+};
+
+export const putAttack = (id, data) =>
+  fetchJSON(`/attacks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteAttack = async (id) => {
+  const res = await fetch(`${BASE_URL}/attacks/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status}: ${text}`);
+  }
+};

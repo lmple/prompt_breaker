@@ -25,6 +25,6 @@ corsMiddleware = cors $ const $ Just policy
   where
     policy = simpleCorsResourcePolicy
       { corsOrigins = Just (["http://localhost:5173"], True)
-      , corsMethods = ["GET", "POST", "OPTIONS"]
+      , corsMethods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
       , corsRequestHeaders = ["Content-Type", "Authorization"]
       }
